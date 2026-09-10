@@ -1,0 +1,608 @@
+<!DOCTYPE html>
+<html lang="uk">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="theme-color" content="#232323">
+<meta name="color-scheme" content="dark">
+<meta name="description" content="Постав повзунки як відчуваєш — і отримай один фільм на вечір замість списку на сорок позицій.">
+<meta property="og:title" content="Що ввімкнути">
+<meta property="og:description" content="Один фільм на вечір. Без списків на сорок позицій.">
+<meta property="og:image" content="/banner.png">
+<meta property="og:type" content="website">
+<meta name="twitter:card" content="summary_large_image">
+<title>Що ввімкнути</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A//www.w3.org/2000/svg%22%20viewBox%3D%220%200%20512%20512%22%3E%3Crect%20width%3D%22512%22%20height%3D%22512%22%20rx%3D%2296%22%20fill%3D%22%23232323%22/%3E%3Crect%20x%3D%2296%22%20y%3D%22136%22%20width%3D%22320%22%20height%3D%22240%22%20rx%3D%2248%22%20fill%3D%22%23F5C518%22/%3E%3Ctext%20x%3D%22256%22%20y%3D%22256%22%20text-anchor%3D%22middle%22%20dominant-baseline%3D%22central%22%20font-family%3D%22Roboto%2CArial%2Csans-serif%22%20font-size%3D%22118%22%20font-weight%3D%22700%22%20fill%3D%22%23232323%22%3E%D0%A9%D0%92%3C/text%3E%3C/svg%3E">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;500;700&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --bg:#232323;
+    --panel:#2C2C2C;
+    --line:#3A3A3A;
+    --raised:#383838;
+    --amber:#F5C518;
+    --text:#F2F2F2;
+    --muted:#A5A5A5;
+  }
+  *{box-sizing:border-box}
+  html{background:#232323;color-scheme:dark;-webkit-text-size-adjust:100%}
+  html,body{margin:0;padding:0}
+  body{
+    background:#232323; color:var(--text);
+    font-family:'Roboto',system-ui,sans-serif; min-height:100vh;
+    position:relative; overflow-x:hidden;
+  }
+  /* кіноплівка по краях + світло проєктора зверху */
+  .filmstrip{
+    position:fixed; top:0; bottom:0; width:104px; pointer-events:none; z-index:0;
+    background:
+      linear-gradient(180deg,transparent 0,#000 6px,#000 calc(100% - 6px),transparent 100%),
+      repeating-linear-gradient(180deg,
+        transparent 0 16px,
+        rgba(242,242,242,.9) 16px 40px,
+        transparent 40px 56px);
+    background-size:100% 100%, 26px 100%;
+    background-position:center, center;
+    background-repeat:no-repeat, no-repeat;
+    opacity:.055;
+  }
+  .filmstrip.l{left:-14px; transform:rotate(4deg)}
+  .filmstrip.r{right:-14px; transform:rotate(-4deg)}
+  .beam{
+    position:fixed; top:0; left:50%; transform:translateX(-50%);
+    width:min(1200px,120vw); height:420px; pointer-events:none; z-index:0;
+    background:radial-gradient(ellipse at 50% 0%, rgba(245,197,24,.06), rgba(245,197,24,0) 70%);
+  }
+  @media(max-width:1180px){.filmstrip,.beam{display:none}}
+
+  .topbar{
+    background:#1C1C1C; padding:10px 16px; display:flex; align-items:center;
+    gap:12px; position:sticky; top:0; z-index:10;
+  }
+  .mark{background:var(--amber);color:#000;font-weight:700;font-size:14px;padding:3px 8px;border-radius:4px}
+  .brand{font-size:14px;color:var(--muted);flex:1}
+  .topbar select{background:var(--raised);color:var(--text);border:1px solid var(--line);border-radius:4px;padding:5px 8px;font-size:13px}
+  .wlbtn{background:none;border:1px solid var(--line);color:var(--text);border-radius:4px;padding:5px 10px;font-size:13px;cursor:pointer}
+  .wlbtn b{color:var(--amber)}
+
+  .layout{
+    position:relative; z-index:1;
+    max-width:1000px; margin:0 auto; padding:22px 16px 60px;
+    display:grid; gap:22px; justify-content:center;
+  }
+  .controls{width:100%; max-width:440px; margin:0 auto}
+  @media(min-width:900px){
+    .layout{grid-template-columns:400px 480px; align-items:start; padding-top:30px}
+    .layout.empty{grid-template-columns:440px}
+    .controls{max-width:none}
+    .result{position:sticky; top:80px}
+  }
+
+  h1,h2,h3{color:var(--text);-webkit-text-fill-color:var(--text)}
+  h1{font-size:24px;font-weight:700;margin:0 0 6px}
+  .lede{color:var(--muted);-webkit-text-fill-color:var(--muted);font-size:14px;line-height:1.5;margin:0 0 18px}
+
+  .seg{display:flex;background:var(--panel);border-radius:4px;padding:3px;margin-bottom:18px}
+  .seg button{flex:1;padding:10px;border:none;border-radius:3px;background:none;color:var(--muted);font-size:14px;font-weight:500;cursor:pointer}
+  .seg button[aria-pressed=true]{background:var(--amber);color:#000;font-weight:700}
+
+  .panel{background:var(--panel);border-radius:4px;padding:4px 16px}
+  .slider{padding:13px 0;border-bottom:1px solid var(--line)}
+  .slider:last-child{border-bottom:none}
+  .row{display:flex;justify-content:space-between;align-items:baseline;margin-bottom:7px}
+  .row label{font-size:14px;font-weight:500;flex:1}
+  .row .rm{background:none;border:none;color:var(--muted);font-size:16px;line-height:1;cursor:pointer;padding:0 0 0 8px}
+  .row .rm:hover{color:var(--amber)}
+  .row output{font-size:12px;color:var(--amber);font-weight:700;font-variant-numeric:tabular-nums}
+
+  .track{position:relative}
+  input[type=range]{-webkit-appearance:none;appearance:none;width:100%;margin:0;background:transparent;height:16px;cursor:pointer;display:block}
+  input[type=range]::-webkit-slider-runnable-track{height:4px;background:var(--line);border-radius:2px}
+  input[type=range]::-moz-range-track{height:4px;background:var(--line);border-radius:2px}
+  input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;appearance:none;width:16px;height:16px;border-radius:50%;background:var(--amber);border:none;margin-top:-6px}
+  input[type=range]::-moz-range-thumb{width:16px;height:16px;border-radius:50%;background:var(--amber);border:none}
+  input[type=range]:focus-visible{outline:2px solid var(--amber);outline-offset:3px}
+  .marks{position:relative;height:6px;margin-top:1px}
+  .marks i{position:absolute;top:0;width:1px;height:4px;background:#4A4A4A}
+  .marks i.big{height:6px;background:#5C5C5C}
+  .ticks{position:relative;height:13px}
+  .ticks span{
+    position:absolute;top:0;transform:translateX(-50%);
+    font-size:10px;color:#6E6E6E;font-variant-numeric:tabular-nums;
+  }
+
+  details.more{background:var(--panel);border-radius:4px;margin-top:14px}
+  details.more>summary{padding:13px 16px;cursor:pointer;font-size:14px;font-weight:500;list-style:none}
+  details.more>summary::-webkit-details-marker{display:none}
+  details.more>summary::after{content:'+';float:right;color:var(--amber);font-weight:700}
+  details.more[open]>summary::after{content:'–'}
+  .morebody{padding:0 16px 16px;border-top:1px solid var(--line)}
+  .fgroup{margin-top:14px}
+  .fgroup h3{font-size:12px;color:var(--muted);-webkit-text-fill-color:var(--muted);font-weight:500;margin:0 0 8px}
+  .chips{display:flex;flex-wrap:wrap;gap:6px}
+  .chip{padding:6px 11px;border:1px solid var(--line);border-radius:20px;background:none;color:var(--text);font-size:13px;cursor:pointer}
+  .chip[aria-pressed=true]{background:var(--amber);color:#000;border-color:var(--amber);font-weight:500}
+  .fgroup input[type=text],.fgroup select{width:100%;padding:9px 11px;border-radius:4px;border:1px solid var(--line);background:var(--bg);color:var(--text);font-size:14px}
+  .pair{display:flex;gap:8px}
+
+  .go{display:block;width:100%;margin-top:16px;padding:14px;background:var(--amber);color:#000;border:none;border-radius:4px;font-weight:700;font-size:15px;cursor:pointer}
+  .go:disabled{opacity:.5;cursor:default}
+  .subacts{display:flex;gap:8px;margin-top:8px}
+  .subacts button{
+    flex:1;padding:11px;border:1px solid var(--line);border-radius:4px;
+    background:none;color:var(--text);font-size:13px;cursor:pointer;
+  }
+  .subacts button:hover{border-color:var(--amber);color:var(--amber)}
+  .presets{display:flex;flex-wrap:wrap;gap:6px;margin-top:10px}
+  .preset{
+    display:flex;align-items:center;gap:6px;padding:5px 6px 5px 11px;
+    border:1px solid var(--line);border-radius:20px;font-size:13px;
+  }
+  .preset b{font-weight:400;cursor:pointer}
+  .preset button{background:none;border:none;color:var(--muted);cursor:pointer;font-size:15px;line-height:1;padding:0 3px}
+  .preset button:hover{color:var(--amber)}
+
+  .card{background:var(--panel);border-radius:4px;overflow:hidden;display:flex}
+  .card .poster{width:38%;max-width:200px;background:var(--raised);flex-shrink:0}
+  .card .poster img{width:100%;height:100%;object-fit:cover;display:block}
+  .card .body{padding:18px;flex:1;min-width:0}
+  .card h2{font-size:21px;font-weight:700;margin:0 0 7px;line-height:1.25}
+  .score{display:flex;align-items:center;gap:5px;font-size:14px;margin-bottom:8px}
+  .score .star{color:var(--amber);font-size:16px}
+  .score span{color:var(--muted)}
+  .meta{font-size:13px;color:var(--muted);line-height:1.5;margin-bottom:12px}
+  .plot{font-size:14px;line-height:1.6;color:#DDD;margin:0 0 16px}
+  .acts{display:flex;gap:8px;flex-wrap:wrap}
+  .acts button{flex:1;min-width:130px;padding:11px;border:none;border-radius:4px;background:var(--raised);color:var(--text);font-size:14px;font-weight:500;cursor:pointer}
+  .acts button.saved{background:var(--amber);color:#000;font-weight:700}
+  .msg{padding:26px 16px;text-align:center;color:var(--muted);font-size:14px;line-height:1.6;background:var(--panel);border-radius:4px}
+  @media(max-width:520px){
+    .card{flex-direction:column}
+    .card .poster{width:100%;max-width:none;max-height:330px}
+  }
+
+  .wl{background:var(--panel);border-radius:4px;padding:16px;margin-top:20px}
+  .wl h3{margin:0 0 12px;font-size:15px}
+  .wlitem{display:flex;align-items:center;gap:10px;padding:8px 0;border-bottom:1px solid var(--line);font-size:14px}
+  .wlitem:last-child{border-bottom:none}
+  .wlitem span{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .wlitem small{color:var(--muted)}
+  .wlitem button{background:none;border:none;color:var(--muted);cursor:pointer;font-size:18px;line-height:1;padding:2px 6px}
+  .wlitem button:hover{color:var(--amber)}
+</style>
+</head>
+<body>
+<div class="beam"></div>
+<div class="filmstrip l"></div>
+<div class="filmstrip r"></div>
+
+<div class="topbar">
+  <span class="mark">ЩВ</span>
+  <span class="brand">Що ввімкнути</span>
+  <button class="wlbtn" id="wlToggle">Список <b>0</b></button>
+  <select id="lang">
+    <option value="uk">UA</option><option value="en">EN</option><option value="pl">PL</option>
+  </select>
+</div>
+
+<noscript><p style="max-width:440px;margin:22px auto;padding:16px;background:#2C2C2C;border-radius:4px;text-align:center;color:#A5A5A5">Для роботи сторінки потрібен JavaScript. Відкрий її у звичайному браузері.</p></noscript>
+<div class="layout empty" id="layout">
+  <div class="controls">
+    <h1 id="t_title">Один фільм на вечір</h1>
+    <p class="lede" id="t_lede">Постав повзунки як відчуваєш — отримаєш одну назву, а не список на сорок позицій.</p>
+
+    <div class="seg" role="group">
+      <button id="segMovie" aria-pressed="true">Фільм</button>
+      <button id="segTv" aria-pressed="false">Серіал</button>
+    </div>
+
+    <div class="panel" id="sliders"></div>
+
+    <details class="more">
+      <summary id="t_more">Більше фільтрів</summary>
+      <div class="morebody">
+        <div class="fgroup"><h3 id="t_genres">Ще жанри</h3><div class="chips" id="extraGenres"></div></div>
+        <div class="fgroup"><h3 id="t_region">Регіон виробництва</h3><div class="chips" id="regions"></div></div>
+        <div class="fgroup"><h3 id="t_years">Роки</h3>
+          <div class="pair">
+            <input type="text" id="yFrom" inputmode="numeric" placeholder="1970">
+            <input type="text" id="yTo" inputmode="numeric" placeholder="2026">
+          </div>
+        </div>
+        <div class="fgroup"><h3 id="t_minrating">Рейтинг не нижче</h3>
+          <select id="minRating">
+            <option value="5">5+</option><option value="6">6+</option>
+            <option value="7">7+</option><option value="8">8+</option>
+          </select>
+        </div>
+        <div class="fgroup"><h3 id="t_kw">Ключові слова, актор, режисер</h3><input type="text" id="kw" placeholder=""></div>
+      </div>
+    </details>
+
+    <button class="go" id="go">Підібрати</button>
+    <div class="subacts">
+      <button id="reset">Скинути фільтри</button>
+      <button id="savef">Зберегти фільтр</button>
+    </div>
+    <div class="presets" id="presets"></div>
+  </div>
+
+  <div class="result">
+    <div id="out"></div>
+    <div class="wl" id="wl" hidden></div>
+  </div>
+</div>
+
+<footer style="max-width:1000px;margin:0 auto;padding:28px 16px 40px;color:#7E7E7E;font-size:12px;line-height:1.7;text-align:center">
+  © 2026 Що ввімкнути<br>
+  Дані про фільми надані TMDB. Цей сайт не пов'язаний із TMDB і не схвалений ним.
+</footer>
+
+<script>
+/* Ключ TMDB живе на сервері, у змінній оточення. Тут його нема. */
+async function tmdb(path, params){
+  const q = new URLSearchParams(params || {});
+  q.set('path', path);
+  const r = await fetch('/api/tmdb?' + q.toString());
+  if(!r.ok) throw new Error('TMDB ' + r.status);
+  return r.json();
+}
+const MIN_VOTES = 200;
+
+const T = {
+  uk:{title:'Один фільм на вечір',lede:'Постав повзунки як відчуваєш — отримаєш одну назву, а не список на сорок позицій.',
+      movie:'Фільм',tv:'Серіал',more:'Більше фільтрів',genres:'Ще жанри',region:'Регіон виробництва',
+      years:'Роки',minrating:'Рейтинг не нижче',kw:'Ключові слова, актор, режисер',kwph:'наприклад: шпигун, Джим Керрі',
+      go:'Підібрати',again:'Підібрати інший',save:'До списку',saved:'У списку',wl:'Список',empty:'Список порожній.',
+      searching:'Шукаю…',none:'Під такі фільтри нічого не знайшлось. Зсунь кілька повзунків вниз або прибери зайве.',
+      err:'Не вийшло дістати дані. Перевір ключ TMDB у коді сторінки.',nokey:'У коді сторінки не вписаний ключ TMDB.',
+      noplot:'Опису цією мовою нема.',votes:'оцінок',min:'хв',seasons:'сезонів',reset:'Скинути фільтри',savef:'Зберегти фільтр',pname:'Назва фільтра',pdef:'Фільтр'},
+  en:{title:'One film for tonight',lede:'Move the sliders however it feels — you get one title, not a list of forty.',
+      movie:'Movie',tv:'Series',more:'More filters',genres:'More genres',region:'Production region',
+      years:'Years',minrating:'Rating at least',kw:'Keywords, actor, director',kwph:'e.g. spy, Jim Carrey',
+      go:'Find one',again:'Find another',save:'Save',saved:'Saved',wl:'Watchlist',empty:'Nothing saved yet.',
+      searching:'Searching…',none:'Nothing matched. Lower a few sliders or clear some filters.',
+      err:'Could not load data. Check the TMDB key in the page source.',nokey:'No TMDB key set in the page source.',
+      noplot:'No description in this language.',votes:'votes',min:'min',seasons:'seasons',reset:'Reset filters',savef:'Save filter',pname:'Filter name',pdef:'Filter'},
+  pl:{title:'Jeden film na wieczór',lede:'Ustaw suwaki jak czujesz — dostaniesz jeden tytuł, a nie listę czterdziestu.',
+      movie:'Film',tv:'Serial',more:'Więcej filtrów',genres:'Więcej gatunków',region:'Region produkcji',
+      years:'Lata',minrating:'Ocena nie niżej',kw:'Słowa kluczowe, aktor, reżyser',kwph:'np. szpieg, Jim Carrey',
+      go:'Dobierz',again:'Dobierz inny',save:'Do listy',saved:'Na liście',wl:'Lista',empty:'Lista jest pusta.',
+      searching:'Szukam…',none:'Nic nie pasuje. Zsuń kilka suwaków w dół albo usuń filtry.',
+      err:'Nie udało się pobrać danych. Sprawdź klucz TMDB w kodzie strony.',nokey:'Brak klucza TMDB w kodzie strony.',
+      noplot:'Brak opisu w tym języku.',votes:'ocen',min:'min',seasons:'sezonów',reset:'Wyczyść filtry',savef:'Zapisz filtr',pname:'Nazwa filtra',pdef:'Filtr'}
+};
+const LOCALE = {uk:'uk-UA',en:'en-US',pl:'pl-PL'};
+
+const AXES = [
+  {id:'drama',    n:{uk:'Драма',en:'Drama',pl:'Dramat'},         mv:[18],     tv:[18]},
+  {id:'comedy',   n:{uk:'Комедія',en:'Comedy',pl:'Komedia'},     mv:[35],     tv:[35]},
+  {id:'action',   n:{uk:'Бойовик',en:'Action',pl:'Akcja'},       mv:[28],     tv:[10759]},
+  {id:'scifi',    n:{uk:'Фантастика',en:'Sci-fi',pl:'Sci-fi'},   mv:[878],    tv:[10765]},
+  {id:'romance',  n:{uk:'Романтика',en:'Romance',pl:'Romans'},   mv:[10749],  tv:[10749]},
+  {id:'detective',n:{uk:'Детектив',en:'Detective',pl:'Kryminał'},mv:[80,9648],tv:[80,9648]},
+  {id:'horror',   n:{uk:'Жахи',en:'Horror',pl:'Horror'},         mv:[27],     tv:[]},
+  {id:'historic', n:{uk:'Історичний',en:'History',pl:'Historyczny'}, mv:[36],  tv:[]},
+  {id:'future',   n:{uk:'Майбутнє',en:'Future',pl:'Przyszłość'}, mv:[],       tv:[], keyword:'future'}
+];
+
+const EXTRA = [
+  {id:12,   tvId:10759, n:{uk:'Пригоди',en:'Adventure',pl:'Przygodowy'}},
+  {id:53,   tvId:9648,  n:{uk:'Трилер',en:'Thriller',pl:'Thriller'}},
+  {id:16,   tvId:16,    n:{uk:'Анімація',en:'Animation',pl:'Animacja'}},
+  {id:14,   tvId:10765, n:{uk:'Фентезі',en:'Fantasy',pl:'Fantasy'}},
+  {id:10751,tvId:10751, n:{uk:'Сімейне',en:'Family',pl:'Familijny'}},
+  {id:10752,tvId:10768, n:{uk:'Війна',en:'War',pl:'Wojenny'}},
+  {id:99,   tvId:99,    n:{uk:'Документальне',en:'Documentary',pl:'Dokumentalny'}},
+  {id:37,   tvId:37,    n:{uk:'Вестерн',en:'Western',pl:'Western'}},
+  {id:10402,tvId:null,  n:{uk:'Музика',en:'Music',pl:'Muzyczny'}}
+];
+
+const REGIONS = [
+  {id:'eu', n:{uk:'Європа',en:'Europe',pl:'Europa'}, c:['GB','FR','DE','IT','ES','PL','SE','DK','NO','CZ','UA','NL','BE','IE','PT','AT','FI','HU','RO','GR']},
+  {id:'na', n:{uk:'Північна Америка',en:'North America',pl:'Ameryka Płn.'}, c:['US','CA','MX']},
+  {id:'sa', n:{uk:'Південна Америка',en:'South America',pl:'Ameryka Płd.'}, c:['BR','AR','CL','CO','PE','UY']},
+  {id:'as', n:{uk:'Азія',en:'Asia',pl:'Azja'}, c:['JP','KR','CN','HK','TW','IN','TH','IR','TR','IL']},
+  {id:'au', n:{uk:'Австралія',en:'Australia',pl:'Australia'}, c:['AU','NZ']}
+];
+
+const MARKS=[];for(let i=0;i<=100;i+=10)MARKS.push(i);
+let lang='uk', mode='movie', shown=[], watchlist=[], current=null, presets=[];
+const dyn=[];
+const regionOn=new Set();
+const st=(k,d)=>{try{var v=JSON.parse(localStorage.getItem(k));return (v===null||v===undefined)?d:v}catch(e){return d}};
+const save=(k,v)=>{try{localStorage.setItem(k,JSON.stringify(v))}catch(e){}};
+lang=st('lang','uk'); watchlist=st('watchlist',[]); presets=st('presets',[]);
+
+const $=id=>document.getElementById(id);
+const t=k=>T[lang][k];
+
+function buildSlider(a,value,removable){
+  const d=document.createElement('div');
+  d.className='slider'; d.id='s_'+a.id;
+  d.innerHTML=
+    '<div class="row"><label for="'+a.id+'" data-ax="'+a.id+'"></label><output id="o_'+a.id+'">'+value+'</output>'+
+    (removable?'<button class="rm" data-rm-ax="'+a.id+'" aria-label="remove">×</button>':'')+'</div>'+
+    '<div class="track"><input type="range" id="'+a.id+'" min="0" max="100" step="1" value="'+value+'"></div>';
+  $('sliders').appendChild(d);
+  const inp=d.querySelector('input'), o=d.querySelector('output');
+  inp.addEventListener('input',()=>{o.textContent=inp.value});
+  const rm=d.querySelector('[data-rm-ax]');
+  if(rm) rm.addEventListener('click',()=>removeGenre(a.id));
+  d.querySelector('label').textContent=a.n[lang];
+  return d;
+}
+
+/* базові шкали */
+AXES.forEach(a=>buildSlider(a,50,false));
+
+/* жанр із чипсів стає такою самою шкалою внизу */
+function chipEl(id){ return document.querySelector('#extraGenres .chip[data-g="'+id+'"]'); }
+function addGenre(g){
+  if(dyn.some(x=>x.gid===g.id)) return;
+  const a={id:'g'+g.id, gid:g.id, n:g.n, mv:[g.id], tv:[g.tvId]};
+  dyn.push(a);
+  buildSlider(a,50,true);
+  const c=chipEl(g.id); if(c) c.hidden=true;
+  shown=[];
+}
+function removeGenre(axId){
+  const i=dyn.findIndex(x=>x.id===axId);
+  if(i<0) return;
+  const g=dyn[i]; dyn.splice(i,1);
+  const el=$('s_'+axId); if(el) el.remove();
+  const c=chipEl(g.gid); if(c) c.hidden=false;
+  shown=[];
+}
+function allAxes(){ return AXES.concat(dyn); }
+
+EXTRA.forEach(g=>{
+  const b=document.createElement('button');
+  b.className='chip'; b.type='button'; b.dataset.g=g.id;
+  b.addEventListener('click',()=>addGenre(g));
+  $('extraGenres').appendChild(b);
+});
+
+REGIONS.forEach(r=>{
+  const b=document.createElement('button');
+  b.className='chip'; b.type='button'; b.dataset.r=r.id; b.setAttribute('aria-pressed','false');
+  b.addEventListener('click',()=>{
+    const on=b.getAttribute('aria-pressed')==='true';
+    b.setAttribute('aria-pressed',String(!on));
+    on?regionOn.delete(r):regionOn.add(r);
+  });
+  $('regions').appendChild(b);
+});
+
+function applyLang(){
+  document.documentElement.lang=lang;
+  $('lang').value=lang;
+  $('t_title').textContent=t('title');
+  $('t_lede').textContent=t('lede');
+  $('segMovie').textContent=t('movie');
+  $('segTv').textContent=t('tv');
+  $('t_more').textContent=t('more');
+  $('t_genres').textContent=t('genres');
+  $('t_region').textContent=t('region');
+  $('t_years').textContent=t('years');
+  $('t_minrating').textContent=t('minrating');
+  $('t_kw').textContent=t('kw');
+  $('kw').placeholder=t('kwph');
+  $('go').textContent=t('go');
+  $('reset').textContent=t('reset');
+  $('savef').textContent=t('savef');
+  document.querySelectorAll('[data-ax]').forEach(l=>{
+    const a=allAxes().find(x=>x.id===l.dataset.ax); if(a) l.textContent=a.n[lang];
+  });
+  document.querySelectorAll('#extraGenres .chip').forEach(b=>{b.textContent=EXTRA.find(g=>String(g.id)===b.dataset.g).n[lang]});
+  document.querySelectorAll('#regions .chip').forEach(b=>{b.textContent=REGIONS.find(r=>r.id===b.dataset.r).n[lang]});
+  renderWatchlist();
+  if(current) render(current);
+}
+$('lang').addEventListener('change',e=>{lang=e.target.value; save('lang',lang); applyLang()});
+
+$('segMovie').addEventListener('click',()=>setMode('movie'));
+$('segTv').addEventListener('click',()=>setMode('tv'));
+function setMode(m){
+  mode=m; shown=[];
+  $('segMovie').setAttribute('aria-pressed',String(m==='movie'));
+  $('segTv').setAttribute('aria-pressed',String(m==='tv'));
+}
+
+$('wlToggle').addEventListener('click',()=>{
+  const el=$('wl'); el.hidden=!el.hidden;
+  if(!el.hidden){ $('layout').classList.remove('empty'); el.scrollIntoView({behavior:'smooth',block:'nearest'}); }
+  else if(!current) $('layout').classList.add('empty');
+});
+function renderWatchlist(){
+  $('wlToggle').innerHTML=t('wl')+' <b>'+watchlist.length+'</b>';
+  if(!watchlist.length){
+    $('wl').innerHTML='<h3>'+t('wl')+'</h3><p class="msg" style="padding:14px">'+t('empty')+'</p>';
+    return;
+  }
+  $('wl').innerHTML='<h3>'+t('wl')+'</h3>'+watchlist.map(w=>
+    '<div class="wlitem"><span>'+w.title+'</span><small>'+(w.year||'')+'</small><button data-del="'+w.id+'" aria-label="remove">×</button></div>'
+  ).join('');
+  $('wl').querySelectorAll('[data-del]').forEach(b=>{
+    b.addEventListener('click',()=>{
+      watchlist=watchlist.filter(w=>String(w.id)!==b.dataset.del);
+      save('watchlist',watchlist); renderWatchlist(); if(current) render(current);
+    });
+  });
+}
+
+const kwCache={};
+async function keywordId(word){
+  if(kwCache[word]!==undefined) return kwCache[word];
+  const j=await tmdb('search/keyword',{query:word});
+  kwCache[word]=(j.results&&j.results.length)?j.results[0].id:null;
+  return kwCache[word];
+}
+const val=id=>Number($(id).value);
+
+async function pick(){
+  $('go').disabled=true;
+  $('layout').classList.remove('empty');
+  $('out').innerHTML='<p class="msg">'+t('searching')+'</p>';
+  try{
+    const genres=[], keywords=[];
+    for(const a of allAxes()){
+      if(val(a.id)<60) continue;
+      (mode==='movie'?a.mv:a.tv).forEach(g=>{if(g) genres.push(g)});
+      if(a.keyword){const k=await keywordId(a.keyword); if(k) keywords.push(k);}
+    }
+    const free=$('kw').value.trim();
+    if(free){const k=await keywordId(free); if(k) keywords.push(k);}
+    const countries=[]; regionOn.forEach(r=>r.c.forEach(c=>countries.push(c)));
+    const yFrom=$('yFrom').value.trim(), yTo=$('yTo').value.trim();
+    const dateField=mode==='movie'?'primary_release_date':'first_air_date';
+
+    const params={
+      language:LOCALE[lang], include_adult:'false', sort_by:'popularity.desc',
+      'vote_average.gte':$('minRating').value,
+      'vote_count.gte':MIN_VOTES,
+      page:1+Math.floor(Math.random()*5)
+    };
+    if(genres.length)    params.with_genres=[...new Set(genres)].join('|');
+    if(keywords.length)  params.with_keywords=keywords.join(',');
+    if(countries.length) params.with_origin_country=countries.join('|');
+    if(/^\d{4}$/.test(yFrom)) params[dateField+'.gte']=yFrom+'-01-01';
+    if(/^\d{4}$/.test(yTo))   params[dateField+'.lte']=yTo+'-12-31';
+
+    const data=await tmdb('discover/'+mode, params);
+    let list=(data.results||[]).filter(m=>!shown.includes(m.id));
+    if(!list.length){shown=[]; list=data.results||[];}
+    if(!list.length){$('out').innerHTML='<p class="msg">'+t('none')+'</p>'; return;}
+
+    const best=list.map(m=>{
+      let score=0;
+      allAxes().forEach(a=>{
+        const want=val(a.id)/100;
+        const ids=mode==='movie'?a.mv:a.tv;
+        const has=ids.some(g=>(m.genre_ids||[]).includes(g))?1:0;
+        score+=Math.abs(want-has);
+      });
+      return {m,score};
+    }).sort((x,y)=>x.score-y.score)[0].m;
+
+    shown.push(best.id);
+    const det=await tmdb(mode+'/'+best.id, {language:LOCALE[lang]});
+    current=det; render(det);
+  }catch(e){
+    $('out').innerHTML='<p class="msg">'+t('err')+'</p>';
+  }finally{
+    $('go').disabled=false;
+  }
+}
+
+function render(m){
+  const isMovie=mode==='movie';
+  const title=m.title||m.name;
+  const year=(m.release_date||m.first_air_date||'').slice(0,4);
+  const len=isMovie
+    ?(m.runtime?m.runtime+' '+t('min'):'')
+    :(m.number_of_seasons?m.number_of_seasons+' '+t('seasons'):'');
+  const genres=(m.genres||[]).map(g=>g.name).join(', ');
+  const rating=m.vote_average?m.vote_average.toFixed(1):'';
+  const votes=m.vote_count?m.vote_count.toLocaleString(LOCALE[lang]):'';
+  const inList=watchlist.some(w=>w.id===m.id);
+
+  $('out').innerHTML=
+    '<div class="card">'+
+      (m.poster_path?'<div class="poster"><img src="https://image.tmdb.org/t/p/w500'+m.poster_path+'" alt=""></div>':'')+
+      '<div class="body">'+
+        '<h2>'+title+'</h2>'+
+        (rating?'<div class="score"><span class="star">★</span><b>'+rating+'</b><span>/ 10 · '+votes+' '+t('votes')+'</span></div>':'')+
+        '<div class="meta">'+[year,len,genres].filter(Boolean).join(' · ')+'</div>'+
+        '<p class="plot">'+(m.overview||t('noplot'))+'</p>'+
+        '<div class="acts">'+
+          '<button id="again">'+t('again')+'</button>'+
+          '<button id="fav" class="'+(inList?'saved':'')+'">'+(inList?t('saved'):t('save'))+'</button>'+
+        '</div>'+
+      '</div>'+
+    '</div>';
+  $('again').addEventListener('click',pick);
+  $('fav').addEventListener('click',()=>{
+    if(watchlist.some(w=>w.id===m.id)) watchlist=watchlist.filter(w=>w.id!==m.id);
+    else watchlist.push({id:m.id,title:title,year:year,type:mode});
+    save('watchlist',watchlist); renderWatchlist(); render(m);
+  });
+}
+
+/* ── скинути / зберегти фільтр ── */
+function setChip(container,pressed){
+  document.querySelectorAll(container+' .chip').forEach(b=>{
+    const on=pressed(b);
+    b.setAttribute('aria-pressed',String(on));
+  });
+}
+function resetFilters(){
+  dyn.slice().forEach(a=>removeGenre(a.id));
+  AXES.forEach(a=>{ $(a.id).value=50; $('o_'+a.id).textContent='50'; });
+  regionOn.clear();
+  setChip('#regions',()=>false);
+  $('yFrom').value=''; $('yTo').value=''; $('kw').value=''; $('minRating').value='5';
+  shown=[];
+}
+function currentFilter(){
+  const ax={}; AXES.forEach(a=>ax[a.id]=val(a.id));
+  return {
+    mode:mode, ax:ax,
+    extra:dyn.map(a=>({g:a.gid,v:val(a.id)})),
+    regions:[...regionOn].map(r=>r.id),
+    yFrom:$('yFrom').value.trim(), yTo:$('yTo').value.trim(),
+    minRating:$('minRating').value, kw:$('kw').value.trim()
+  };
+}
+function applyFilter(f){
+  setMode(f.mode||'movie');
+  AXES.forEach(a=>{
+    const v=(f.ax&&f.ax[a.id]!==undefined)?f.ax[a.id]:50;
+    $(a.id).value=v; $('o_'+a.id).textContent=v;
+  });
+  dyn.slice().forEach(a=>removeGenre(a.id));
+  (f.extra||[]).forEach(e=>{
+    const g=EXTRA.find(x=>x.id===(e.g!==undefined?e.g:e));
+    if(!g) return;
+    addGenre(g);
+    const v=(e.v!==undefined)?e.v:50;
+    $('g'+g.id).value=v; $('o_g'+g.id).textContent=v;
+  });
+  regionOn.clear(); (f.regions||[]).forEach(id=>{const r=REGIONS.find(x=>x.id===id); if(r) regionOn.add(r)});
+  setChip('#regions',b=>[...regionOn].some(r=>r.id===b.dataset.r));
+  $('yFrom').value=f.yFrom||''; $('yTo').value=f.yTo||'';
+  $('minRating').value=f.minRating||'5'; $('kw').value=f.kw||'';
+  shown=[];
+}
+function renderPresets(){
+  $('presets').innerHTML=presets.map((p,i)=>
+    '<span class="preset"><b data-use="'+i+'">'+p.name+'</b><button data-rm="'+i+'" aria-label="remove">×</button></span>'
+  ).join('');
+  $('presets').querySelectorAll('[data-use]').forEach(b=>{
+    b.addEventListener('click',()=>applyFilter(presets[Number(b.dataset.use)].f));
+  });
+  $('presets').querySelectorAll('[data-rm]').forEach(b=>{
+    b.addEventListener('click',()=>{
+      presets.splice(Number(b.dataset.rm),1); save('presets',presets); renderPresets();
+    });
+  });
+}
+$('reset').addEventListener('click',resetFilters);
+$('savef').addEventListener('click',()=>{
+  let name=null;
+  try{ name=prompt(t('pname'), t('pdef')+' '+(presets.length+1)); }catch(e){}
+  if(name===null) name=t('pdef')+' '+(presets.length+1);
+  name=String(name).trim().slice(0,24) || (t('pdef')+' '+(presets.length+1));
+  presets.push({name:name, f:currentFilter()});
+  save('presets',presets); renderPresets();
+});
+
+$('go').addEventListener('click',pick);
+setMode('movie');
+applyLang();
+renderPresets();
+</script>
+</body>
+</html>
