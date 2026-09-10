@@ -464,8 +464,7 @@ async function pick(){
     const params={
       language:LOCALE[lang], include_adult:'false', sort_by:'popularity.desc',
       'vote_average.gte':$('minRating').value,
-      'vote_count.gte':MIN_VOTES,
-      page:1+Math.floor(Math.random()*5)
+      'vote_count.gte':MIN_VOTES
     };
     if(genres.length)    params.with_genres=[...new Set(genres)].join('|');
     if(keywords.length)  params.with_keywords=keywords.join(',');
@@ -473,9 +472,23 @@ async function pick(){
     if(/^\d{4}$/.test(yFrom)) params[dateField+'.gte']=yFrom+'-01-01';
     if(/^\d{4}$/.test(yTo))   params[dateField+'.lte']=yTo+'-12-31';
 
-    const data=await tmdb('discover/'+mode, params);
+    // спершу перша сторінка — з неї видно, скільки їх узагалі є
+    const first=await tmdb('discover/'+mode, Object.assign({page:1}, params));
+    let data=first;
+    const pages=Math.min(first.total_pages||1, 5);
+    if(pages>1){
+      const pg=1+Math.floor(Math.random()*pages);
+      if(pg!==1){
+        const other=await tmdb('discover/'+mode, Object.assign({page:pg}, params));
+        if(other.results && other.results.length) data=other;
+      }
+    }
     let list=(data.results||[]).filter(m=>!shown.includes(m.id));
-    if(!list.length){shown=[]; list=data.results||[];}
+    if(!list.length){
+      // усе з цієї сторінки вже показували — беремо першу і починаємо коло заново
+      list=(first.results||[]).filter(m=>!shown.includes(m.id));
+      if(!list.length){ shown=[]; list=first.results||[]; }
+    }
     if(!list.length){$('out').innerHTML='<p class="msg">'+t('none')+'</p>'; return;}
 
     const best=list.map(m=>{
