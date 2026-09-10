@@ -61,7 +61,7 @@
     background:#1C1C1C; padding:10px 16px; display:flex; align-items:center;
     gap:12px; position:sticky; top:0; z-index:10;
   }
-  .mark{background:var(--amber);color:#000;font-weight:700;font-size:14px;padding:3px 8px;border-radius:4px}
+  .mark{background:var(--amber);color:#000;-webkit-text-fill-color:#000;font-weight:700;font-size:14px;padding:3px 8px;border-radius:4px;flex-shrink:0}
   .brand{font-size:14px;color:var(--muted);flex:1}
   .topbar select{background:var(--raised);color:var(--text);border:1px solid var(--line);border-radius:4px;padding:5px 8px;font-size:13px}
   .wlbtn{background:none;border:1px solid var(--line);color:var(--text);border-radius:4px;padding:5px 10px;font-size:13px;cursor:pointer}
@@ -144,8 +144,8 @@
   .preset button{background:none;border:none;color:var(--muted);cursor:pointer;font-size:15px;line-height:1;padding:0 3px}
   .preset button:hover{color:var(--amber)}
 
-  .card{background:var(--panel);border-radius:4px;overflow:hidden;display:flex}
-  .card .poster{width:38%;max-width:200px;background:var(--raised);flex-shrink:0}
+  .card{background:var(--panel);border-radius:4px;overflow:hidden;display:flex;align-items:flex-start}
+  .card .poster{width:38%;max-width:200px;aspect-ratio:2/3;background:var(--raised);flex-shrink:0}
   .card .poster img{width:100%;height:100%;object-fit:cover;display:block}
   .card .body{padding:18px;flex:1;min-width:0}
   .card h2{font-size:21px;font-weight:700;margin:0 0 7px;line-height:1.25}
@@ -340,22 +340,22 @@ AXES.forEach(a=>buildSlider(a,50,false));
 
 /* жанр із чипсів стає такою самою шкалою внизу */
 function chipEl(id){ return document.querySelector('#extraGenres .chip[data-g="'+id+'"]'); }
-function addGenre(g){
+let addGenre=function(g){
   if(dyn.some(x=>x.gid===g.id)) return;
   const a={id:'g'+g.id, gid:g.id, n:g.n, mv:[g.id], tv:[g.tvId]};
   dyn.push(a);
   buildSlider(a,50,true);
   const c=chipEl(g.id); if(c) c.hidden=true;
   shown=[];
-}
-function removeGenre(axId){
+};
+let removeGenre=function(axId){
   const i=dyn.findIndex(x=>x.id===axId);
   if(i<0) return;
   const g=dyn[i]; dyn.splice(i,1);
   const el=$('s_'+axId); if(el) el.remove();
   const c=chipEl(g.gid); if(c) c.hidden=false;
   shown=[];
-}
+};
 function allAxes(){ return AXES.concat(dyn); }
 
 EXTRA.forEach(g=>{
@@ -405,11 +405,11 @@ $('lang').addEventListener('change',e=>{lang=e.target.value; save('lang',lang); 
 
 $('segMovie').addEventListener('click',()=>setMode('movie'));
 $('segTv').addEventListener('click',()=>setMode('tv'));
-function setMode(m){
+let setMode=function(m){
   mode=m; shown=[];
   $('segMovie').setAttribute('aria-pressed',String(m==='movie'));
   $('segTv').setAttribute('aria-pressed',String(m==='tv'));
-}
+};
 
 $('wlToggle').addEventListener('click',()=>{
   const el=$('wl'); el.hidden=!el.hidden;
@@ -599,8 +599,29 @@ $('savef').addEventListener('click',()=>{
   save('presets',presets); renderPresets();
 });
 
+/* ── фільтри запам'ятовуються самі ── */
+let saveTimer=null;
+function saveState(){
+  clearTimeout(saveTimer);
+  saveTimer=setTimeout(()=>save('lastFilter',currentFilter()),300);
+}
+document.querySelector('.controls').addEventListener('input',saveState);
+document.querySelector('.controls').addEventListener('change',saveState);
+
+const _addGenre=addGenre, _removeGenre=removeGenre, _setMode=setMode;
+addGenre=function(g){ _addGenre(g); saveState(); };
+removeGenre=function(id){ _removeGenre(id); saveState(); };
+setMode=function(m){ _setMode(m); saveState(); };
+
+$('segMovie').addEventListener('click',saveState);
+$('segTv').addEventListener('click',saveState);
+
 $('go').addEventListener('click',pick);
-setMode('movie');
+_setMode('movie');
+
+const last=st('lastFilter',null);
+if(last) applyFilter(last);
+
 applyLang();
 renderPresets();
 </script>
