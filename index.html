@@ -149,6 +149,8 @@
   .card .poster img{width:100%;height:100%;object-fit:cover;display:block}
   .card .body{padding:18px;flex:1;min-width:0}
   .card h2{font-size:21px;font-weight:700;margin:0 0 7px;line-height:1.25}
+  .card h2 a{color:inherit;-webkit-text-fill-color:inherit;text-decoration:none;border-bottom:1px solid transparent}
+  .card h2 a:hover{border-bottom-color:var(--amber)}
   .score{display:flex;align-items:center;gap:5px;font-size:14px;margin-bottom:8px}
   .score .star{color:var(--amber);font-size:16px}
   .score span{color:var(--muted)}
@@ -513,7 +515,7 @@ function render(m){
     '<div class="card">'+
       (m.poster_path?'<div class="poster"><img src="https://image.tmdb.org/t/p/w500'+m.poster_path+'" alt=""></div>':'')+
       '<div class="body">'+
-        '<h2>'+title+'</h2>'+
+        '<h2><a href="https://www.themoviedb.org/'+mode+'/'+m.id+'?language='+LOCALE[lang]+'" target="_blank" rel="noopener">'+title+'</a></h2>'+
         (rating?'<div class="score"><span class="star">★</span><b>'+rating+'</b><span>/ 10 · '+votes+' '+t('votes')+'</span></div>':'')+
         '<div class="meta">'+[year,len,genres].filter(Boolean).join(' · ')+'</div>'+
         '<p class="plot">'+(m.overview||t('noplot'))+'</p>'+
