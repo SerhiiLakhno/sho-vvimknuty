@@ -97,13 +97,14 @@
   .row .rm:hover{color:var(--amber)}
   .row output{font-size:12px;color:var(--amber);font-weight:700;font-variant-numeric:tabular-nums}
 
-  .track{position:relative}
-  input[type=range]{-webkit-appearance:none;appearance:none;width:100%;margin:0;background:transparent;height:16px;cursor:pointer;display:block}
-  input[type=range]::-webkit-slider-runnable-track{height:4px;background:var(--line);border-radius:2px}
-  input[type=range]::-moz-range-track{height:4px;background:var(--line);border-radius:2px}
-  input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;appearance:none;width:16px;height:16px;border-radius:50%;background:var(--amber);border:none;margin-top:-6px}
-  input[type=range]::-moz-range-thumb{width:16px;height:16px;border-radius:50%;background:var(--amber);border:none}
-  input[type=range]:focus-visible{outline:2px solid var(--amber);outline-offset:3px}
+  .track{position:relative;height:20px;touch-action:pan-y}
+  .track input{position:absolute;width:1px;height:1px;opacity:0;pointer-events:none}
+  .bar{position:absolute;top:8px;left:0;right:0;height:4px;background:var(--line);border-radius:2px}
+  .thumb{
+    position:absolute;top:2px;width:16px;height:16px;margin-left:-8px;
+    border-radius:50%;background:var(--amber);touch-action:none;cursor:pointer;
+  }
+  .thumb:focus-visible{outline:2px solid var(--amber);outline-offset:3px}
   .marks{position:relative;height:6px;margin-top:1px}
   .marks i{position:absolute;top:0;width:1px;height:4px;background:#4A4A4A}
   .marks i.big{height:6px;background:#5C5C5C}
@@ -321,16 +322,74 @@ lang=st('lang','uk'); watchlist=st('watchlist',[]); presets=st('presets',[]);
 const $=id=>document.getElementById(id);
 const t=k=>T[lang][k];
 
+/* значення пишеться в прихований input, щоб решта коду працювала як раніше */
+function setVal(id, v){
+  v=Math.max(0,Math.min(100,Math.round(v)));
+  const inp=$(id); if(!inp) return;
+  inp.value=v;
+  const o=$('o_'+id); if(o) o.textContent=v;
+  const track=document.querySelector('.track[data-for="'+id+'"]');
+  if(track){
+    const th=track.querySelector('.thumb');
+    th.style.left='calc('+v+'% + '+(8-v*0.16).toFixed(2)+'px)';
+    th.setAttribute('aria-valuenow',v);
+  }
+}
+
+function bindSlider(el, id){
+  const track=el.querySelector('.track'), thumb=el.querySelector('.thumb');
+  setVal(id, Number($(id).value));
+
+  function fromX(clientX){
+    const r=track.getBoundingClientRect();
+    const usable=r.width-16;
+    if(usable<=0) return;
+    setVal(id, ((clientX-r.left-8)/usable)*100);
+    $(id).dispatchEvent(new Event('input',{bubbles:true}));
+  }
+
+  thumb.addEventListener('pointerdown', e=>{
+    e.preventDefault();
+    thumb.setPointerCapture(e.pointerId);
+    const move=ev=>fromX(ev.clientX);
+    const up=ev=>{
+      thumb.releasePointerCapture(e.pointerId);
+      thumb.removeEventListener('pointermove',move);
+      thumb.removeEventListener('pointerup',up);
+      thumb.removeEventListener('pointercancel',up);
+    };
+    thumb.addEventListener('pointermove',move);
+    thumb.addEventListener('pointerup',up);
+    thumb.addEventListener('pointercancel',up);
+  });
+
+  thumb.addEventListener('keydown', e=>{
+    const cur=Number($(id).value);
+    let v=null;
+    if(e.key==='ArrowRight'||e.key==='ArrowUp') v=cur+5;
+    if(e.key==='ArrowLeft'||e.key==='ArrowDown') v=cur-5;
+    if(e.key==='Home') v=0;
+    if(e.key==='End') v=100;
+    if(v===null) return;
+    e.preventDefault();
+    setVal(id,v);
+    $(id).dispatchEvent(new Event('input',{bubbles:true}));
+  });
+}
+
 function buildSlider(a,value,removable){
   const d=document.createElement('div');
   d.className='slider'; d.id='s_'+a.id;
   d.innerHTML=
     '<div class="row"><label for="'+a.id+'" data-ax="'+a.id+'"></label><output id="o_'+a.id+'">'+value+'</output>'+
     (removable?'<button class="rm" data-rm-ax="'+a.id+'" aria-label="remove">×</button>':'')+'</div>'+
-    '<div class="track"><input type="range" id="'+a.id+'" min="0" max="100" step="1" value="'+value+'"></div>';
+    '<div class="track" data-for="'+a.id+'">'+
+      '<input type="range" id="'+a.id+'" min="0" max="100" step="1" value="'+value+'" tabindex="-1">'+
+      '<div class="bar"></div>'+
+      '<div class="thumb" role="slider" tabindex="0" aria-valuemin="0" aria-valuemax="100" aria-valuenow="'+value+'"></div>'+
+    '</div>';
   $('sliders').appendChild(d);
-  const inp=d.querySelector('input'), o=d.querySelector('output');
-  inp.addEventListener('input',()=>{o.textContent=inp.value});
+  bindSlider(d, a.id);
   const rm=d.querySelector('[data-rm-ax]');
   if(rm) rm.addEventListener('click',()=>removeGenre(a.id));
   d.querySelector('label').textContent=a.n[lang];
@@ -555,7 +614,7 @@ function setChip(container,pressed){
 }
 function resetFilters(){
   dyn.slice().forEach(a=>removeGenre(a.id));
-  AXES.forEach(a=>{ $(a.id).value=50; $('o_'+a.id).textContent='50'; });
+  AXES.forEach(a=>setVal(a.id,50));
   regionOn.clear();
   setChip('#regions',()=>false);
   $('yFrom').value=''; $('yTo').value=''; $('kw').value=''; $('minRating').value='5';
@@ -574,16 +633,14 @@ function currentFilter(){
 function applyFilter(f){
   setMode(f.mode||'movie');
   AXES.forEach(a=>{
-    const v=(f.ax&&f.ax[a.id]!==undefined)?f.ax[a.id]:50;
-    $(a.id).value=v; $('o_'+a.id).textContent=v;
+    setVal(a.id, (f.ax&&f.ax[a.id]!==undefined)?f.ax[a.id]:50);
   });
   dyn.slice().forEach(a=>removeGenre(a.id));
   (f.extra||[]).forEach(e=>{
     const g=EXTRA.find(x=>x.id===(e.g!==undefined?e.g:e));
     if(!g) return;
     addGenre(g);
-    const v=(e.v!==undefined)?e.v:50;
-    $('g'+g.id).value=v; $('o_g'+g.id).textContent=v;
+    setVal('g'+g.id, (e.v!==undefined)?e.v:50);
   });
   regionOn.clear(); (f.regions||[]).forEach(id=>{const r=REGIONS.find(x=>x.id===id); if(r) regionOn.add(r)});
   setChip('#regions',b=>[...regionOn].some(r=>r.id===b.dataset.r));
